@@ -1,3 +1,5 @@
+window.ee = new EventEmitter();
+
 let my_news = [
     {
         author: 'Саша Печкин',
@@ -18,12 +20,6 @@ let my_news = [
 
 
 let Article = React.createClass({
-    // propTypes: {
-    //     author: React.PropTypes.string.isRequired,
-    //     text: React.PropTypes.string.isRequired
-    //     bigText: React.PropTypes.string.isRequired
-    // },
-
     getInitialState: function () {
         return {
             visible: false
@@ -45,7 +41,11 @@ let Article = React.createClass({
             <div className="article">
                 <p className="news__author">{author}:</p>
                 <p className="news__text">{text}</p>
-                <a href="#" onClick={this.readMoreClick} className={'news__readmore ' + (visible ? 'none' : '')}>Подробнее</a>
+                <a href="#"
+                   onClick={this.readMoreClick}
+                   className={'news__readmore ' + (visible ? 'none' : '')}>
+                   Подробнее
+                </a>
                 <p className={'news__big-text ' + (visible ? '' : 'none')}>{bigText}</p>
             </div>
         );
@@ -75,19 +75,122 @@ let News = React.createClass({
         return (
             <div className="news">
                 {newsTemplate}
-                <strong className={'news__count ' + (data.length > 0 ? '' : 'none') }>Всего новостей: {data.length}</strong>
+                <strong
+                    className={'news__count ' + (data.length > 0 ? '' : 'none') }>
+                    Всего новостей: {data.length}
+                </strong>
             </div>
         );
     }
 });
 
+let Add = React.createClass({
+    getInitialState: function () {
+        return {
+            disabled: true,
+            isEmptyAuthor: true,
+            isEmptyText: true
+        }
+    },
+
+    onFieldChange: function (fieldName, e) {
+        var isEmpty = e.target.value.trim().length > 0;
+        if (isEmpty) {
+            this.setState({ [''+fieldName]: false });
+        } else {
+            this.setState({ [''+fieldName]: true });
+        }
+    },
+
+    componentDidMount: function () {
+        ReactDOM.findDOMNode(this.refs.author).focus();
+    },
+
+    onBtnClickHandler: function (e) {
+        e.preventDefault();
+        var author = ReactDOM.findDOMNode(this.refs.author).value;
+        var textEl = ReactDOM.findDOMNode(this.refs.text);
+        var text = textEl.value;
+        var item = [{
+            author: author,
+            text: text,
+            bigText: '...'
+        }];
+        window.ee.emit('News.add', item);
+        textEl.value = '';
+        this.setState({isEmptyText: true});
+    },
+
+    onChangeRuleClick: function () {
+        this.setState({disabled: !this.state.disabled});
+    },
+
+    render: function () {
+        var agree = this.state.disabled;
+        var emptyAuthor = this.state.isEmptyAuthor;
+        var emptyText = this.state.isEmptyText;
+        return (
+            <form className="add cf">
+                <input
+                    type="text"
+                    className="add__author"
+                    dafaultValue=""
+                    placeholder="Ваше имя"
+                    ref="author"
+                    onChange={this.onFieldChange.bind(this, 'isEmptyAuthor')}
+                />
+                <textarea
+                    className="add__text"
+                    defaultValue=""
+                    placeholder="Текст новости"
+                    ref='text'
+                    onChange={this.onFieldChange.bind(this, 'isEmptyText')}
+                ></textarea>
+                <label htmlFor="agree">
+                    <input
+                        type="checkbox"
+                        ref="checkrule"
+                        onChange={this.onChangeRuleClick}
+                    />я согласен с правилами
+                </label>
+                <button
+                    className="add__btn"
+                    onClick={this.onBtnClickHandler}
+                    ref="alert_button"
+                    disabled = {agree || emptyAuthor || emptyText}>
+                    Добавить новость!
+                </button>
+            </form>
+        );
+    }
+});
+
 let App = React.createClass({
+    getInitialState: function () {
+        return {
+            news: my_news
+        }
+    },
+
+    componentDidMount:function () {
+        var self = this;
+        window.ee.addListener('News.add', function (item) {
+            var nextNews = item.concat(self.state.news);
+            self.setState({news: nextNews});
+        })
+    },
+
+    componentWillUnmount: function () {
+        window.ee.removeListener('News.add');
+    },
+
     render: function () {
 
         return (
             <div className="app">
                 <h3>Новости</h3>
-                <News data={my_news}/>
+                <Add />
+                <News data={this.state.news}/>
             </div>
         );
     }
